@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="ru">
+
+<head>
+  <meta charset="utf-8" />
+  <title>Bear Clicker</title>
+  <link rel="stylesheet" href="TemplateData/style.css" />
+  <script src="https://telegram.org/js/telegram-web-app.js?56"></script>
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  
+  <style>
+    /* Стили для загрузочного экрана */
+    #loading-screen {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-image: url('https://www.bearcoin.pro/static/LoadingScreen5.png'); /* Замените на URL вашего фонового изображения */
+      background-size: cover;
+      background-position: center;
+      background-repeat: no-repeat;
+      z-index: 9999;
+
+      /* Центровка содержимого с помощью Flexbox */
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    /* Стили для монетки */
+    .coin {
+      background: #FDCD78;
+      width: 15em; /* Увеличено с 10em до 15em */
+      height: 15em; /* Увеличено с 10em до 15em */
+      border-radius: 50%;
+      position: relative;
+      transform-style: preserve-3d;
+      animation: spin 2s linear infinite;
+    }
+    
+    @keyframes spin {
+      0% {
+        transform: rotateY(0deg);
+      }
+      100% {
+        transform: rotateY(360deg);
+      }
+    }
+    
+    .coin:before {
+      background-color: #E1B463;
+      position: absolute;
+      border-radius: 50%;
+      content: '';
+      height: 15em; /* Увеличено с 10em до 15em */
+      width: 15em; /* Увеличено с 10em до 15em */
+      transform: translateZ(-1.125em); /* Увеличено с -0.75em до -1.125em */
+    }
+    
+    .coin:after {
+      background-color: #E1B463;
+      content: '';
+      left: 6.375em; /* Увеличено с 4.25em до 6.375em */
+      position: absolute;
+      height: 15em; /* Увеличено с 10em до 15em */
+      width: 1.125em; /* Увеличено с 0.75em до 1.125em */
+      z-index: -10;
+      transform: rotateY(-90deg);
+      transform-origin: 100% 50%;
+    }
+    
+    .tails, .heads {
+      background: url("https://www.bearcoin.pro/static/coin.png"); /* Замените на URL вашей монетки */
+      background-size: cover;
+      background-position: center;
+      background-color: #E1B463;
+      position: absolute;
+      border-radius: 50%;
+      content: '';
+      height: 15em; /* Увеличено с 10em до 15em */
+      width: 15em; /* Увеличено с 10em до 15em */
+      border: 1.5px solid #E1B463; /* Увеличена толщина границы пропорционально */
+    }
+    
+    .tails {
+      transform: translateZ(-0.001em);
+    }
+    
+    .heads {
+      transform: translateZ(-1.133em); /* Увеличено с -0.755em до -1.133em */
+    }
+
+    /* Обновлённые стили для body и html */
+    html, body {
+      height: 100%;
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+      touch-action: none; /* Предотвращаем скроллинг и зум */
+    }
+
+    /* Стили для контейнера Unity */
+    #unity-container {
+      position: fixed; /* Изменено на fixed */
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+    }
+
+    /* Стили для канваса Unity */
+    #unity-canvas {
+      width: 100%;
+      height: 100%;
+      background-color: #000000;
+      -webkit-overflow-scrolling: auto; /* Предотвращаем сдвиг контента на iOS */
+    }
+  </style>
+</head>
+
+<body>
+  <!-- Загрузочный экран с монеткой -->
+  <div id="loading-screen">
+    <div class="coin">
+      <div class="tails"></div>
+      <div class="heads"></div>
+    </div>
+  </div>
+
+  <div id="unity-container">
+    <canvas id="unity-canvas" width="1080" height="1920"></canvas>
+  </div>
+
+  <script src="Build/bearcoin.loader.js"></script>
+  <script>
+    // Объявляем unityInstance в глобальной области видимости
+    var unityInstance = null;
+
+    function onUnityLoaded() {
+      // Скрываем загрузочный экран после загрузки Unity
+      var loadingScreen = document.getElementById('loading-screen');
+      if (loadingScreen) {
+        loadingScreen.style.display = 'none';
+      }
+
+      console.log("[Unigram Payment] Unity instance successfully loaded");
+    }
+
+    createUnityInstance(document.querySelector("#unity-canvas"), {
+      dataUrl: "Build/bearcoin.data.br",
+      frameworkUrl: "Build/bearcoin.framework.js.br",
+      codeUrl: "Build/bearcoin.wasm.br",
+      streamingAssetsUrl: "StreamingAssets",
+      companyName: "DefaultCompany",
+      productName: "Bear Clicker",
+      productVersion: "1.0",
+    }).then((instance) => {
+      unityInstance = instance; // Сохраняем unityInstance в глобальную переменную
+      onUnityLoaded();
+    }).catch((error) => {
+      console.error('Error loading Unity instance:', error);
+    });
+
+    var KeyboardManagerJS = {
+      isKeyboardVisible: false,
+      initialHeight: window.innerHeight,
+      cooldown: false, // Флаг для предотвращения повторных вызовов
+
+      init: function() {
+        this.initialHeight = window.innerHeight;
+        window.addEventListener('resize', this.onResize.bind(this));
+      },
+
+      onResize: function() {
+        if (this.cooldown) return; // Игнорируем события во время охлаждения
+
+        var currentHeight = window.innerHeight;
+        var heightDifference = this.initialHeight - currentHeight;
+
+        // Порог для определения появления/скрытия клавиатуры (например, 150px)
+        var threshold = 150;
+
+        if (heightDifference > threshold && !this.isKeyboardVisible) {
+          // Клавиатура появилась
+          this.isKeyboardVisible = true;
+          console.log("KeyboardManagerJS: Клавиатура показана");
+          this.sendMessageToUnity('OnKeyboardShowMessage');
+          this.cooldown = true;
+          setTimeout(() => { this.cooldown = false; }, 500); // Устанавливаем охлаждение на 500ms
+        }
+        else if (heightDifference < threshold && this.isKeyboardVisible) {
+          // Клавиатура скрылась
+          this.isKeyboardVisible = false;
+          console.log("KeyboardManagerJS: Клавиатура скрыта");
+          this.sendMessageToUnity('OnKeyboardHideMessage');
+          this.cooldown = true;
+          setTimeout(() => { this.cooldown = false; }, 500); // Устанавливаем охлаждение на 500ms
+        }
+      },
+
+      sendMessageToUnity: function(methodName) {
+        if (unityInstance && unityInstance.SendMessage) {
+          console.log(`KeyboardManagerJS: Отправка сообщения '${methodName}' в Unity`);
+          unityInstance.SendMessage('KeyboardManager', methodName, '');
+        } else if (unityInstance && unityInstance.Module && unityInstance.Module.SendMessage) {
+          console.log(`KeyboardManagerJS: Отправка сообщения '${methodName}' в Unity через Module`);
+          unityInstance.Module.SendMessage('KeyboardManager', methodName, '');
+        } else {
+          console.warn('KeyboardManagerJS: Unity instance или метод SendMessage недоступны');
+        }
+      }
+    };
+
+    // Предотвращаем прокрутку страницы при появлении клавиатуры
+    document.addEventListener('focusin', (e) => {
+      // При фокусе на поле ввода
+      document.body.style.position = 'fixed';
+    });
+
+    document.addEventListener('focusout', (e) => {
+      // При снятии фокуса с поля ввода
+      document.body.style.position = '';
+    });
+
+    window.addEventListener('load', function() {
+      KeyboardManagerJS.init();
+      Telegram.WebApp.ready();
+      Telegram.WebApp.expand();
+      
+      var isMobile = /Mobi|Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+
+      if (isMobile) {
+        Telegram.WebApp.requestFullscreen();
+      } else {
+        console.log("[Unigram Payment] Fullscreen не применяется – устройство не мобильное");
+      }
+
+      //Telegram.WebApp.lockOrientation();
+
+      console.log("[Unigram Payment] Telegram web app has been expanded to full screen");
+    });
+  </script>
+</body>
+
+</html>
